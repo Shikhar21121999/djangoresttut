@@ -2,21 +2,21 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework.views import APIView
+from django.http import Http404
 # from rest_framework.parsers import JSONParser
 from .models import Snippet
 from .serializers import SnippetSerializer
 
 
-@api_view(["GET", "POST"])
-def snippet_list(request, format=None):
-    """
-    View function to display all code snippet
-    if a get request is passed
-    or to add a new snippet to database
-    if post request is passed
-    """
+class SnippetList(APIView):
+    '''
+    List all snippets or create a new snippet
+    using class based view
+    '''
 
-    if request.method == 'GET':
+    def get(self, request, format=None):
+        # function that gets called when request is of get type
         # list all code snippet
         snippets = Snippet.objects.all()   # query snippet to get all objects
         # serializer the object set using snippetSerializer
@@ -24,8 +24,7 @@ def snippet_list(request, format=None):
         # return the serialized data as a Json Response
         return Response(serializer.data)
 
-    elif request.method == 'POST':
-        # data = JSONParser().parse(request.data)
+    def post(self, request, format=None):
         serializer = SnippetSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -33,28 +32,48 @@ def snippet_list(request, format=None):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(["GET", "PUT", "DELETE"])
-def snippet_detail(request, pk, format=None):
-    """
-    Retrieve, update or delete a code snippet.
-    """
-    try:
-        snippet = Snippet.objects.get(pk=pk)
-    except Snippet.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+class SnippetDetail(APIView):
+    '''
+    class based view to give detail
+    of a snippet supports GET,PUT,DELETE
+    for a particular snippet represented by pk
+    '''
 
-    if request.method == 'GET':
+    def get_object(self, pk):
+        '''
+        Utility function to get object or snippet
+        reffered by pk
+        '''
+        try:
+            return Snippet.objects.get(pk=pk)
+        except Snippet.DoesNotExist:
+            raise Http404
+
+    def get(self, request, pk, format=None):
+        '''
+        utility function to handel get request
+        for a snippet
+        '''
+        snippet = self.get_object(pk)
         serializer = SnippetSerializer(snippet)
         return Response(serializer.data)
 
-    elif request.method == 'PUT':
-        # put request is used to update an entry
+    def put(self, request, pk, format=None):
+        '''
+        Utility function to handel put request
+        for a snippet
+        '''
+        snippet = self.get_object(pk)
         serializer = SnippetSerializer(snippet, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    elif request.method == 'DELETE':
+    def delete(self, request, pk, format=None):
+        '''
+        Utility function to handel DELETE request
+        and delete a snippet
+        '''
+        snippet = self.get_object(pk)
         snippet.delete()
         return Response(status=status.HTTP_202_ACCEPTED)
